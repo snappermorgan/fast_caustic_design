@@ -87,7 +87,7 @@ Because deriving a heightmap for a lens relies on normal integration, which only
 
 One solution to this issue would be to solve the transport map T(u->1) on a custom domain (think rounded rectangle, circle, ellipse, etc). This requires a rewrite because the current OTMap solver relies on a square domain with quad faces. You could use a triangular mesh as the domain and apply finite element analysis to compute the discrete differential operators. Namely the laplacian and the gradient. The laplacian uses a special stencil, and the gradient is calculated on the dual vertices, so this would not be trivial on a triangle mesh.
 
-A second solution that may be more approachable is modifying the right hand side of equation 11 in the OTMap paper by replacing (h^2) * u(x) with the integral of u(x) / v(T(x)) over the dual cell. This should solve the full Monge-Ampère equation and yield a true L2 optimal transport map T(u->v).
+A second solution that may be more approachable is modifying the right hand side of equation 11 in the OTMap paper by replacing the cell integral of u(x) with the cell integral of u(x) / v(T(x)). This should solve the full Monge-Ampère equation and yield a true L2 optimal transport map T(u->v). The catch is that this makes the problem highly nonlinear and non-convex, thus slower or even no convergence in some cases.
 
 ## License
 

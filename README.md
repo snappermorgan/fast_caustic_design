@@ -77,11 +77,17 @@ Once we have the transport map, the next step is to figure out the exact geometr
 
 These rays define how we want the surface to bend the light. Using inverse Snell’s law, we compute the target surface normals needed to steer the rays correctly. Finally, we use a solver (Ceres) to adjust the vertex positions on the lens surface so that the computed normals match the target ones. This is called normal integration and can be thought of as approximating the inverse gradient of the vertex normals.
 ## Limitation
-Currently, the code produces only square lenses, though work is underway to support rectangular lenses. Circular lenses might be possible in the future; however, achieving this will require a complete rewrite of the OTMap solver.
+Currently, the code produces only square lenses.
 
-The limitation stems from the fact that the OTMap solver is designed to compute the transport map from an image to a uniform distribution, denoted as T(u->1). Specifically, our optimal transport domain is strictly square, so if we want a circular lens, we need to transport from a circular image towards your target image. 
+The limitation stems from the fact that the OTMap solver is designed to compute the transport map from an image to a uniform distribution on the square domain. This means we can only transport light from a square lens surface to an image.
 
-In this implementation a transport map from a source image u to a target image v T(u->v) is estimated by means of inversion and composition (see Equation 10 in the OTMap paper). This approach is an estimation and not a true optimal transport map. This estimation inadvertently introduces a small curl component into the mapping, so it is no longer purely the gradient of a potential.
+To support arbitrary lens shapes, we need to compute the transport map from an arbitrary domain to an image. Or from an arbitrary source distribution.
+
+In the method that OTMap uses to compute a transport map from any source distribution to any target distribution is by cheating a little bit. We first move light from a source distribution to a uniform distribution. Then transport the lights from this uniform distribution to the target distribution.
+
+This is called composition, see equation 10 in the paper.
+
+This approach is an estimation and not a true optimal transport map. This estimation inadvertently introduces a small curl component into the mapping, so it is no longer purely the gradient of a potential.
 
 Because deriving a heightmap for a lens relies on normal integration, which only utilizes the curl-free component of the mapping, the presence of any curl results in distortions in the caustic lens.
 

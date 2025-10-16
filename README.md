@@ -79,15 +79,13 @@ These rays define how we want the surface to bend the light. Using inverse Snell
 ## Limitation
 Currently, the code produces only square lenses.
 
-The limitation stems from the fact that the OTMap solver is designed to compute the transport map from an image to a uniform distribution on the square domain. This means we can only transport light from a square lens surface to an image.
+The limitation stems from the fact that the OTMap solver is designed to compute the transport map from an image to a uniform distribution on the square domain (denoted as T(u->1)). This means we can only transport light from a square lens surface to an image.
 
-To support arbitrary lens shapes, we need to compute the transport map from an arbitrary domain to an image. Or from an arbitrary source distribution.
+To support arbitrary lens shapes like for example a circle, we need to tell the optimal transport solver to start from a circle and transport to an image. Here the circle is the source distribution (v), and the image is the target distribution (u).
 
-In the method that OTMap uses to compute a transport map from any source distribution to any target distribution is by cheating a little bit. We first move light from a source distribution to a uniform distribution. Then transport the lights from this uniform distribution to the target distribution.
+The method that OTMap uses to compute a transport map from any source distribution to any target distribution is by a heuristic. They first move mass from a source distribution to a uniform distribution on the square domain (move mass along T(v->1)). Then transport the new mass from this uniform distribution on the square domain to the target distribution (moves new mass along T(1->u)). This is called composition, see equation 10 in the paper.
 
-This is called composition, see equation 10 in the paper.
-
-This approach is an estimation and not a true optimal transport map. This estimation inadvertently introduces a small curl component into the mapping, so it is no longer purely the gradient of a potential.
+This approach is an estimation and does not yield a true optimal transport map. This estimation inadvertently introduces a small curl component into the mapping, so it is no longer purely the gradient of a potential.
 
 Because deriving a heightmap for a lens relies on normal integration, which only utilizes the curl-free component of the mapping, the presence of any curl results in distortions in the caustic lens.
 

@@ -93,6 +93,11 @@ One solution to this issue would be to solve the transport map T(u->1) on a cust
 
 A second solution that may be more approachable is modifying the right hand side of equation 11 in the OTMap paper by replacing the cell integral of u(x) with the cell integral of u(x) / v(T(x)). This should solve the full Monge-Ampère equation and yield a true L2 optimal transport map T(u->v). The catch is that this makes the problem highly nonlinear and non-convex, thus slower or even no convergence in some cases.
 
+Some other potential transport solving strategies:
+- A method that approximates the monge ampere operator by a monotone descretization. A wide stencil scheme for stable and monotone newton iterations.
+- A method that reformulates the monge ampere equation to a scheme that is solved by fixed point updates of a potential. The potential is updated by the solution of a poisson equation. (FFT-OT)
+- A method that alternates between two potential functions related by a convex dual transform (c-transform), performing gradient-based updates in each space to approximate an optimal transport mapping between two distributions. (BFM)
+
 ## License
 
 The core of the transport solver is provided under the [GNU Public License v3](https://www.gnu.org/licenses/gpl-3.0.html).

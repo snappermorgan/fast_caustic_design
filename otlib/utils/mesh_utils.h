@@ -32,6 +32,12 @@ bool inside_quad(const Eigen::Vector2d& q, const Eigen::Vector2d *p);
 // generate a regular quad mesh
 void generate_quad_mesh(int m, int n, surface_mesh::Surface_mesh& mesh, bool inclusive = false);
 
+// generate a triangular mesh of a circle (simple pie-slice, low resolution)
+void generate_triangular_mesh_circle(surface_mesh::Surface_mesh& mesh, double radius, int segments);
+
+// generate a triangular mesh of a circle with multiple rings (higher resolution)
+void generate_triangular_mesh_circle_rings(surface_mesh::Surface_mesh& mesh, double radius, int rings, int segments);
+
 // removes faces having a zero density
 void prune_empty_faces(surface_mesh::Surface_mesh &mesh, Eigen::VectorXd density);
 

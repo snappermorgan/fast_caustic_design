@@ -45,11 +45,7 @@ bool load_input_density(const std::string& filename, MatrixXd& density)
         load_image(filename.c_str(), density);
         if (density.size() == 0)
             return false;
-        if (density.rows() != density.cols())
-        {
-            std::cout << "Error: input image \"" << filename << "\" is not square.";
-            return false;
-        }
+        // Note: Rectangular (non-square) images are now supported
     }
     return true;
 }

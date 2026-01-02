@@ -27,6 +27,8 @@
 
 #include "normal_integration/normal_integration.h"
 #include "normal_integration/mesh.h"
+#include "otlib/otsolver_trianglemesh.h"
+#include "otlib/utils/mesh_utils.h"
 
 using namespace Eigen;
 using namespace surface_mesh;
@@ -45,7 +47,7 @@ void output_usage()
   std::cout << "\033[1;33m" << "REQUIRED PARAMETERS:" << "\033[0m" << std::endl;
   std::cout << "  -in_trg <filename>     Target caustic pattern image (what you want the light to look like)" << std::endl;
   std::cout << "                         Supported formats: PNG, BMP, JPG, and other CImg formats" << std::endl;
-  std::cout << "                         Must be square (same width and height)" << std::endl;
+  std::cout << "                         Must be square (same width and height) for OT solver" << std::endl;
   std::cout << "                         OR use procedural patterns: :id:resolution: (e.g., :8:256:)" << std::endl;
   std::cout << "                         Available patterns: 1=constant, 5=linear, 6=circles+boundary," << std::endl;
   std::cout << "                         8=circles, 10=single black dot, 11=single white dot," << std::endl;
@@ -59,8 +61,8 @@ void output_usage()
   std::cout << "                         Distance from lens to projection plane" << std::endl;
   std::cout << "  -thickness <value>     Physical thickness of the lens (default: 0.2)" << std::endl;
   std::cout << "                         Controls how thick the final 3D model will be" << std::endl;
-  std::cout << "  -mesh_width <value>    Physical width and height of the lens (default: 1.0)" << std::endl;
-  std::cout << "                         Sets the overall size of the lens" << std::endl;
+  std::cout << "  -mesh_width <value>    Physical width of the lens (default: 1.0)" << std::endl;
+  std::cout << "                         Height is auto-computed to match image aspect ratio" << std::endl;
   std::cout << std::endl;
 
   std::cout << "\033[1;33m" << "SOURCE LIGHT OPTIONS:" << "\033[0m" << std::endl;
@@ -115,7 +117,7 @@ void output_usage()
   std::cout << std::endl;
 
   std::cout << "\033[1;35m" << "NOTES:" << "\033[0m" << std::endl;
-  std::cout << "  * Images must be square (same width and height)" << std::endl;
+  std::cout << "  * Input images must be square (OT solver limitation)" << std::endl;
   std::cout << "  * Higher resolution (-res) gives more detail but takes longer" << std::endl;
   std::cout << "  * The lens uses refractive index 1.55 (typical plastic/glass)" << std::endl;
   std::cout << "  * Processing involves 10 outer iterations for optimal results" << std::endl;
@@ -465,6 +467,16 @@ void rotatePoints(std::vector<std::vector<double>>& trg_pts, std::vector<double>
 }
 
 TransportMap runOptimalTransport(MatrixXd &density, CLIopts &opts) {
+  // Always use the grid-based solver - it's proven to work well.
+  // The grid solver works on [0,1]² and requires square input for now.
+  
+  // Check for square input (OT solver limitation)
+  if (density.rows() != density.cols()) {
+    std::cerr << "Error: OT solver requires square input. Image is " 
+              << density.rows() << "x" << density.cols() << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  
   GridBasedTransportSolver otsolver;
   otsolver.set_verbose_level(opts.verbose_level-1);
 
@@ -474,13 +486,14 @@ TransportMap runOptimalTransport(MatrixXd &density, CLIopts &opts) {
   if(density.maxCoeff()>1.)
     density = density / density.maxCoeff(); //normalize
 
-  BenchTimer t_solver_init, t_solver_compute, t_generate_uniform;
+  BenchTimer t_solver_init, t_solver_compute;
 
   t_solver_init.start();
   otsolver.init(static_cast<int>(density.rows()));
   t_solver_init.stop();
 
-  std::cout << "init\n";
+  if(opts.verbose_level>=1)
+    std::cout << "  Grid size: " << density.rows() << "x" << density.cols() << "\n";
 
   t_solver_compute.start();
   TransportMap tmap_src = otsolver.solve(vec(density), opts.solver_opt);
@@ -816,9 +829,25 @@ int main(int argc, char** argv)
     exit(EXIT_FAILURE);
   }
 
+  // Calculate mesh dimensions from image aspect ratio
+  double img_width = static_cast<double>(density_trg.cols());
+  double img_height = static_cast<double>(density_trg.rows());
+  double aspect_ratio = img_height / img_width;
+  double mesh_height = opts.mesh_width * aspect_ratio;
+  
+  // Calculate resolution for each dimension (keep pixel aspect ratio)
+  int res_x = opts.resolution;
+  int res_y = static_cast<int>(std::round(opts.resolution * aspect_ratio));
+  
+  if (opts.verbose_level >= 1) {
+    std::cout << "Image dimensions: " << img_width << " x " << img_height 
+              << " (aspect ratio: " << aspect_ratio << ")" << std::endl;
+    std::cout << "Mesh dimensions: " << opts.mesh_width << " x " << mesh_height << std::endl;
+    std::cout << "Mesh resolution: " << res_x << " x " << res_y << std::endl;
+  }
+
   // create triangle mesh that we want to deform into the caustic surface later
-  //Mesh mesh(1.0, 1.0/2, opts.resolution, (int)(opts.resolution/2));
-  Mesh mesh(1.0, 1.0, opts.resolution, opts.resolution);
+  Mesh mesh(opts.mesh_width, mesh_height, res_x, res_y);
 
   // precompute triangle connectivity information
   mesh.build_vertex_to_triangles();
@@ -830,7 +859,8 @@ int main(int argc, char** argv)
   //export_grid_to_svg(mesh.source_points, 1, 1, opts.resolution, opts.resolution, "../grid.svg", 0.5);
 
   // scale the mesh such that there is a small margin around the boundary
-  scaleAndTranslatePoints(mesh.source_points, opts.mesh_width, opts.mesh_width, opts.mesh_width / opts.resolution);
+  double margin = opts.mesh_width / res_x;
+  scaleAndTranslatePoints(mesh.source_points, opts.mesh_width, mesh_height, margin);
 
   // extract the x and y coordinates from the surface vertices
   for (int i=0; i<mesh.source_points.size(); i++)
@@ -860,11 +890,11 @@ int main(int argc, char** argv)
 
     // normalize the images so the brightness is between 0 and 1
     rotated_trg = scaleAndTranslate(rotated_trg, 0.0, 1.0);
-    
+
     // Pass the properly rotated images to the optimal transport solver
     TransportMap tmap_trg = runOptimalTransport(rotated_trg, opts); // computes T(u->1) 
 
-    // this moves the points along T(1->u)
+    // Apply OT mapping to all vertices
     apply_inverse_map(tmap_trg, vertex_positions, 3);
   }
 
@@ -917,6 +947,51 @@ int main(int argc, char** argv)
 
       // given the final target points, we compute the vertex normal that steers light towards the target points
       std::vector<std::vector<double>> normals = fresnelMapping(mesh.source_points, trg_pts, r);
+
+      // DEBUG: Print source, target point and normal statistics
+      if (i == 0) {
+        double min_sx = 1e9, max_sx = -1e9;
+        double min_sy = 1e9, max_sy = -1e9;
+        double min_sz = 1e9, max_sz = -1e9;
+        for (const auto& s : mesh.source_points) {
+          min_sx = std::min(min_sx, s[0]); max_sx = std::max(max_sx, s[0]);
+          min_sy = std::min(min_sy, s[1]); max_sy = std::max(max_sy, s[1]);
+          min_sz = std::min(min_sz, s[2]); max_sz = std::max(max_sz, s[2]);
+        }
+        std::cout << "DEBUG: Source ranges - X: [" << min_sx << ", " << max_sx << "] "
+                  << "Y: [" << min_sy << ", " << max_sy << "] "
+                  << "Z: [" << min_sz << ", " << max_sz << "]" << std::endl;
+        
+        double min_tx = 1e9, max_tx = -1e9;
+        double min_ty = 1e9, max_ty = -1e9;
+        for (const auto& t : trg_pts) {
+          min_tx = std::min(min_tx, t[0]); max_tx = std::max(max_tx, t[0]);
+          min_ty = std::min(min_ty, t[1]); max_ty = std::max(max_ty, t[1]);
+        }
+        std::cout << "DEBUG: Target ranges - X: [" << min_tx << ", " << max_tx << "] "
+                  << "Y: [" << min_ty << ", " << max_ty << "]" << std::endl;
+        
+        double min_nx = 1e9, max_nx = -1e9;
+        double min_ny = 1e9, max_ny = -1e9;
+        double min_nz = 1e9, max_nz = -1e9;
+        for (const auto& n : normals) {
+          min_nx = std::min(min_nx, n[0]); max_nx = std::max(max_nx, n[0]);
+          min_ny = std::min(min_ny, n[1]); max_ny = std::max(max_ny, n[1]);
+          min_nz = std::min(min_nz, n[2]); max_nz = std::max(max_nz, n[2]);
+        }
+        std::cout << "DEBUG: Normal ranges - X: [" << min_nx << ", " << max_nx << "] "
+                  << "Y: [" << min_ny << ", " << max_ny << "] "
+                  << "Z: [" << min_nz << ", " << max_nz << "]" << std::endl;
+        
+        // Output target points to file for visualization
+        std::ofstream tgt_file("tests/target_points.txt");
+        for (size_t j = 0; j < trg_pts.size() && j < mesh.source_points.size(); j++) {
+          tgt_file << mesh.source_points[j][0] << " " << mesh.source_points[j][1] << " "
+                   << trg_pts[j][0] << " " << trg_pts[j][1] << "\n";
+        }
+        tgt_file.close();
+        std::cout << "DEBUG: Saved target points to tests/target_points.txt" << std::endl;
+      }
 
       // solve the mesh surface to align with the calculated target normals
       normal_int.perform_normal_integration(mesh, normals);

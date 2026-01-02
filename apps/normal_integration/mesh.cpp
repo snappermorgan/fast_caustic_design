@@ -1,6 +1,10 @@
 #include "mesh.h"
 
-Mesh::Mesh(double width, double height, int res_x, int res_y)
+Mesh::Mesh(double width, double height, int res_x, int res_y) : Mesh("square", res_x, res_y, width, height)
+{
+}
+
+Mesh::Mesh(const std::string& shape, int res_x, int res_y, double width, double height)
 {
     // set physical size of mesh
     this->width = width;
@@ -10,13 +14,10 @@ Mesh::Mesh(double width, double height, int res_x, int res_y)
     this->res_x = res_x;
     this->res_y = res_y;
 
+    // Generate structured (square) mesh
     generate_structured_mesh(res_x, res_y, width, height, this->triangles, this->source_points);
-
-    //generate_poked_mesh(res_x, res_y, width, height, this->triangles, this->source_points);
     
     build_vertex_to_triangles();
-
-    //this->source_points = circular_transform(this->source_points);
 }
 
 Mesh::Mesh(std::vector<std::vector<double>> new_points, std::vector<std::vector<unsigned int>> new_triangles)
@@ -84,14 +85,18 @@ void save_solid_obj(std::vector<std::vector<double>> &front_points, std::vector<
         << "\"Poisson-Based Continuous Surface Generation for Goal-Based Caustics\" " 
         << "by Yue et al (2014)" << "\n";
 
+    // Center the mesh at origin: transform [0, width] -> [-width/2, width/2]
+    double half_w = width / 2.0;
+    double half_h = height / 2.0;
+
     // Curved mesh verts on the bottom
     for (const auto& point : front_points) {
-        file << "v " << width - point[0] << " " << height - point[1] << " " << -(point[2]) << "\n";
+        file << "v " << (width - point[0] - half_w) << " " << (height - point[1] - half_h) << " " << -(point[2]) << "\n";
     }
 
     // Flat mesh verts on the bottom
     for (const auto& point : back_points) {
-        file << "v " << width - point[0] << " " << height - point[1] << " " << -thickness - min_h << "\n";
+        file << "v " << (width - point[0] - half_w) << " " << (height - point[1] - half_h) << " " << -thickness - min_h << "\n";
     }
 
     // Curved mesh triangles on the top
@@ -179,40 +184,6 @@ void Mesh::generate_structured_mesh(int nx, int ny, double width, double height,
             triangles.push_back({idx + nx, idx + 1, idx + nx + 1});
         }
     }
-}
-
-// transforms a square grid into a circular grid -> to support circular lenses in the future
-/*void Mesh::circular_transform(std::vector<std::vector<double>> &input_points) {
-    for (int i = 0; i < input_points.size(); i++) {
-        double x = input_points[i][0] - this->width/2.0f;
-        double y = input_points[i][1] - this->height/2.0f;
-
-        input_points[i][0] = x * sqrt(1.0 - 2.0*(y * y));
-        input_points[i][1] = y * sqrt(1.0 - 2.0*(x * x));
-
-        input_points[i][0] += this->width/2.0f;
-        input_points[i][1] += this->height/2.0f;
-    }
-}*/
-
-std::vector<std::vector<double>> Mesh::circular_transform(std::vector<std::vector<double>> &input_points) {
-    std::vector<std::vector<double>> transformed_points;
-    for (int i = 0; i < input_points.size(); i++) {
-        std::vector<double> transformed_point(3);
-
-        double x = input_points[i][0] - this->width/2.0f;
-        double y = input_points[i][1] - this->height/2.0f;
-
-        transformed_point[0] = x * sqrt(1.0 - 2.0*(y * y));
-        transformed_point[1] = y * sqrt(1.0 - 2.0*(x * x));
-
-        transformed_point[0] += this->width/2.0f;
-        transformed_point[1] += this->height/2.0f;
-        transformed_point[2] = input_points[i][2];
-
-        transformed_points.push_back(transformed_point);
-    }
-    return transformed_points;
 }
 
 // build mapping from vertices to adjecent triangles -> used for creating dual cells
@@ -608,24 +579,45 @@ void Mesh::save_solid_obj_source(double thickness, const std::string& filename) 
 }
 
 bool Mesh::is_border(int vertex_id) {
+
     int y = vertex_id / res_x;
+
     int x = vertex_id % res_x;
 
+
+
     if (x == 0) {
+
         return true;
+
     }
+
+
 
     if (y == 0) {
+
         return true;
+
     }
+
+
 
     if (x == res_x - 1) {
+
         return true;
+
     }
+
+
 
     if (y == res_y - 1) {
+
         return true;
+
     }
 
+
+
     return false;
+
 }

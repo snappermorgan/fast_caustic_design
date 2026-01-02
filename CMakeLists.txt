@@ -7,6 +7,12 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Use system libraries over conda/anaconda libraries
+# This ensures we link against the correct glibc++ version
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_BUILD_RPATH "/usr/lib/x86_64-linux-gnu")
+set(CMAKE_INSTALL_RPATH "/usr/lib/x86_64-linux-gnu")
+
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -78,6 +84,7 @@ set(SURFACE_MESH_HEADER_FILES
 set(OTSOLVER_SRC_FILES
     otlib/transport_map.cpp
     otlib/otsolver_2dgrid.cpp
+    otlib/otsolver_trianglemesh.cpp
     otlib/details/line_search.cpp
     otlib/details/nested_dissection.cpp
     otlib/utils/bvh2d.cpp
@@ -89,6 +96,7 @@ set(OTSOLVER_SRC_FILES
 set(OTSOLVER_HEADER_FILES
     otlib/transport_map.h
     otlib/otsolver_2dgrid.h
+    otlib/otsolver_trianglemesh.h
     otlib/details/line_search.h
     otlib/details/nested_dissection.h
     otlib/utils/bvh2d.h

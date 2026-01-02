@@ -14,7 +14,53 @@
                 "isDefault": true
             },
             "problemMatcher": ["$gcc"],
-            "detail": "Generated task to build the project"
+            "detail": "Build the caustic_design project"
+        },
+        {
+            "label": "test-full-workflow",
+            "type": "shell",
+            "command": "${workspaceFolder}/tests/test_workflow.sh",
+            "args": ["200"],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Build, generate mesh, render in Blender (res=200 for speed)"
+        },
+        {
+            "label": "test-full-workflow-hires",
+            "type": "shell",
+            "command": "${workspaceFolder}/tests/test_workflow.sh",
+            "args": ["500"],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Build, generate mesh, render in Blender (res=500 for quality)"
+        },
+        {
+            "label": "generate-mesh-only",
+            "type": "shell",
+            "command": "${workspaceFolder}/build/caustic_design",
+            "args": [
+                "-in_trg", "${workspaceFolder}/tests/jkHeart.png",
+                "-focal_l", "3",
+                "-mesh_width", "1",
+                "-res", "200",
+                "-output", "${workspaceFolder}/tests/jkHeart.obj"
+            ],
+            "dependsOn": ["build"],
+            "problemMatcher": [],
+            "detail": "Generate mesh from jkHeart.png (depends on build)"
+        },
+        {
+            "label": "render-only",
+            "type": "shell",
+            "command": "${workspaceFolder}/tests/winblender.sh",
+            "args": [
+                "${workspaceFolder}/tests/renderBlender.py",
+                "${workspaceFolder}/tests/CausticTemplate.blend",
+                "${workspaceFolder}/tests/jkHeart.obj",
+                "${workspaceFolder}/tests/render.png"
+            ],
+            "problemMatcher": [],
+            "detail": "Render existing mesh in Blender"
         }
     ]
 }

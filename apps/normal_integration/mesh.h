@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <unordered_map>
 #include <unordered_set>
+#include <set>
+#include <limits>
 
 struct HashPair {
     template <class T1, class T2>
@@ -29,6 +31,7 @@ class Mesh {
 
     public:
         Mesh(double width, double height, int res_x, int res_y);
+        Mesh(const std::string& shape, int res_x, int res_y, double width, double height);
         Mesh(std::vector<std::vector<double>> points, std::vector<std::vector<unsigned int>> triangles);
         ~Mesh();
 
@@ -68,8 +71,6 @@ class Mesh {
         std::vector<std::vector<double>> calculate_refractive_normals_uniform(std::vector<std::vector<double>> target_pts, double focal_len, double refractive_index); 
 
         void save_solid_obj_source(double thickness, const std::string& filename);
-
-        std::vector<std::vector<double>> circular_transform(std::vector<std::vector<double>> &input_points);
 
         void get_vertex_neighbor_ids(int vertex_id, int &left_vertex, int &right_vertex, int &top_vertex, int &bottom_vertex);
 

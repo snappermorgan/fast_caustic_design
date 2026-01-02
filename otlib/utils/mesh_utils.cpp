@@ -6,6 +6,8 @@
 // Public License v. 2.0. If a copy of the MPL was not distributed
 // with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include "mesh_utils.h"
 #include <limits>
 
@@ -137,6 +139,83 @@ prune_empty_faces(Surface_mesh &mesh, VectorXd density)
       mesh.delete_face(Surface_mesh::Face(i));
   }
   mesh.garbage_collection();
+}
+
+void generate_triangular_mesh_circle(surface_mesh::Surface_mesh& mesh, double radius, int segments)
+{
+    mesh.clear();
+    mesh.reserve(segments + 1, segments * 3, segments);
+
+    // Add center vertex
+    surface_mesh::Surface_mesh::Vertex center_v = mesh.add_vertex(surface_mesh::Point(0.5, 0.5));
+
+    // Add vertices on the circle
+    std::vector<surface_mesh::Surface_mesh::Vertex> outer_vertices;
+    for (int i = 0; i < segments; ++i) {
+        double angle = 2.0 * M_PI * static_cast<double>(i) / static_cast<double>(segments);
+        double x = 0.5 + radius * cos(angle);
+        double y = 0.5 + radius * sin(angle);
+        outer_vertices.push_back(mesh.add_vertex(surface_mesh::Point(x, y)));
+    }
+
+    // Create triangular faces
+    for (int i = 0; i < segments; ++i) {
+        surface_mesh::Surface_mesh::Vertex v1 = outer_vertices[i];
+        surface_mesh::Surface_mesh::Vertex v2 = outer_vertices[(i + 1) % segments];
+        mesh.add_triangle(center_v, v1, v2);
+    }
+}
+
+void generate_triangular_mesh_circle_rings(surface_mesh::Surface_mesh& mesh, double radius, int rings, int segments)
+{
+    mesh.clear();
+    
+    // Total vertices: 1 (center) + rings * segments
+    int total_vertices = 1 + rings * segments;
+    // Total faces: segments (center fan) + (rings-1) * segments * 2 (ring quads split into triangles)
+    int total_faces = segments + (rings - 1) * segments * 2;
+    
+    mesh.reserve(total_vertices, total_faces * 3, total_faces);
+
+    // Add center vertex at (0.5, 0.5)
+    surface_mesh::Surface_mesh::Vertex center_v = mesh.add_vertex(surface_mesh::Point(0.5, 0.5));
+
+    // Add vertices for each ring
+    std::vector<std::vector<surface_mesh::Surface_mesh::Vertex>> ring_vertices(rings);
+    
+    for (int r = 0; r < rings; ++r) {
+        double ring_radius = radius * static_cast<double>(r + 1) / static_cast<double>(rings);
+        
+        for (int s = 0; s < segments; ++s) {
+            double angle = 2.0 * M_PI * static_cast<double>(s) / static_cast<double>(segments);
+            double x = 0.5 + ring_radius * cos(angle);
+            double y = 0.5 + ring_radius * sin(angle);
+            ring_vertices[r].push_back(mesh.add_vertex(surface_mesh::Point(x, y)));
+        }
+    }
+
+    // Create triangular faces for the center ring (fan from center)
+    for (int s = 0; s < segments; ++s) {
+        surface_mesh::Surface_mesh::Vertex v1 = ring_vertices[0][s];
+        surface_mesh::Surface_mesh::Vertex v2 = ring_vertices[0][(s + 1) % segments];
+        mesh.add_triangle(center_v, v1, v2);
+    }
+
+    // Create triangular faces between rings
+    for (int r = 1; r < rings; ++r) {
+        for (int s = 0; s < segments; ++s) {
+            int s_next = (s + 1) % segments;
+            
+            surface_mesh::Surface_mesh::Vertex inner1 = ring_vertices[r - 1][s];
+            surface_mesh::Surface_mesh::Vertex inner2 = ring_vertices[r - 1][s_next];
+            surface_mesh::Surface_mesh::Vertex outer1 = ring_vertices[r][s];
+            surface_mesh::Surface_mesh::Vertex outer2 = ring_vertices[r][s_next];
+            
+            // Two triangles to form a quad between rings
+            mesh.add_triangle(inner1, outer1, inner2);
+            mesh.add_triangle(inner2, outer1, outer2);
+        }
+    }
 }
 
 }

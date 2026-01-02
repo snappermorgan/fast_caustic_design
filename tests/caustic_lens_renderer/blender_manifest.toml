@@ -1,0 +1,29 @@
+# Blender 4.2+ Extensions Manifest
+# See: https://docs.blender.org/manual/en/latest/extensions/getting_started.html
+
+schema_version = "1.0.0"
+
+# Required fields
+id = "caustic_lens_renderer"
+version = "1.0.0"
+name = "Caustic Lens Renderer"
+tagline = "Generate caustic lens meshes from images and render caustic patterns"
+maintainer = "Fast Caustic Design Contributors <contact@example.com>"
+type = "add-on"
+
+# Blender version compatibility
+blender_version_min = "3.6.0"
+
+# License (SPDX identifier)
+license = [
+    "SPDX:GPL-3.0-or-later"
+]
+
+# Optional metadata
+website = "https://github.com/cmorgan/fast_caustic_design"
+tags = ["Mesh", "Render", "Import-Export"]
+
+# Permissions required by this add-on
+# This add-on runs external executables and reads/writes files
+[permissions]
+files = "Import/export mesh files and execute the caustic_design program"

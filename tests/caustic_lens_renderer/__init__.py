@@ -28,6 +28,7 @@ import sys
 import subprocess
 import threading
 import re
+import json
 import platform
 from bpy.props import StringProperty, FloatProperty, IntProperty, BoolProperty, EnumProperty, PointerProperty
 
@@ -276,6 +277,8 @@ class CausticProperties(bpy.types.PropertyGroup):
         min=0,
         max=10
     )  # type: ignore
+
+
     
     # === Render Properties ===
     obj_path: StringProperty(
@@ -343,7 +346,24 @@ def parse_progress(line):
     if len(gen_state.output_lines) > 100:
         gen_state.output_lines.pop(0)
     
-    # Parse different stages
+    # Try parsing as JSON first
+    if line.strip().startswith("{"):
+        try:
+            data = json.loads(line)
+            if "progress" in data:
+                gen_state.progress = float(data["progress"])
+            if "message" in data:
+                gen_state.status_text = data["message"]
+            if "status" in data:
+                status = data["status"]
+                # Map internal status to user readable if needed
+                if status == "processing":
+                    pass 
+            return
+        except json.JSONDecodeError:
+            pass # Fallback to text parsing
+
+    # Parse different stages (Fallback for text output)
     if "Loading target image" in line or "Reading input" in line:
         gen_state.progress = 0.05
         gen_state.status_text = "Loading image..."
@@ -555,7 +575,10 @@ class CAUSTIC_OT_generate_mesh(bpy.types.Operator):
         
         if props.gen_padding > 0:
             args.extend(["-padding", str(props.gen_padding)])
-        
+            
+        # Add JSON progress flag for parsing
+        args.append("--json-progress")
+
         # Start background thread
         thread = threading.Thread(
             target=run_caustic_design,
@@ -926,6 +949,9 @@ class CAUSTIC_PT_generate_panel(bpy.types.Panel):
         row = box.row()
         row.prop(props, "gen_padding")
         row.prop(props, "gen_verbose")
+        
+        row = box.row()
+        row.prop(props, "gen_preview")
         
         # Progress display
         if gen_state.is_running or gen_state.progress > 0:

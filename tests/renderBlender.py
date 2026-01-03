@@ -107,7 +107,7 @@ def process_and_render(base_blend_path, input_obj_path, output_img_path):
     if scene.camera and scene.camera.data.dof.use_dof:
         scene.camera.data.dof.use_dof = False
 
-    # Lower resolution for quick previews (comment out for final)
+    # Lower resolution for quick tests (comment out for final)
     # scene.render.resolution_percentage = 50
     
     # Set Output path

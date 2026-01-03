@@ -11,6 +11,7 @@
 
 #### Einstein:
 ![einstein simulation](data/einstein_sim.png)
+*(Generated image)*
 
 ```
 ./caustic_design -res 512 -focal_l 1.5 -thickness 0.3 -width 1 -in_trg ../data/einstein.png
@@ -21,6 +22,101 @@
 Download the latest build from [Releases](https://github.com/dylanmsu/fast_caustic_design/releases). 
 
 Run the command of one of the examples with the image locations properly filled out. After its complete the 3d model will be located in the directory above the directory of the exe.
+
+### Progress Reporting
+
+For integration with external tools or cloud runners, you can use the `--json-progress` flag.
+
+```bash
+./caustic_design -in_trg target.png --json-progress
+```
+
+When this flag is enabled, the application outputs structured JSON logs to `stdout` indicating the current status, stage, and progress percentage. This is useful for monitoring the job status remotely.
+
+Example output:
+```json
+{"status": "processing", "stage": "surface_optimization", "progress": 0.35, "message": "Iteration 2/10"}
+```
+
+### Cloud Deployment
+
+A Python wrapper (`cloud_runner.py`) is provided to facilitate cloud deployments (e.g., Google Cloud Platform). This script handles:
+
+1.  Downloading input images from Google Cloud Storage (GCS).
+2.  Executing the `caustic_design` binary with progress monitoring.
+3.  Uploading the generated model back to GCS.
+
+**Prerequisites:**
+
+-   Python 3
+-   Google Cloud SDK (if running locally) or a service account (in cloud).
+-   Dependencies: `pip install -r requirements.txt`
+
+**Usage:**
+
+The wrapper accepts the same arguments as the C++ binary but supports `gs://` URIs for inputs and outputs.
+
+```bash
+python3 cloud_runner.py \
+  --bin ./build/caustic_design \
+  -in_trg gs://my-bucket/target.png \
+  -output gs://my-bucket/results/my_lens.obj
+```
+
+This acts as a drop-in worker script for async queue runners that trigger backend processing with GCS paths.
+
+### Configuration & Authentication
+
+To execute `cloud_runner.py`, you must set up authentication for Google Cloud services (GCS and Cloud Logging).
+
+**Environment Variables:**
+
+1.  **`GOOGLE_APPLICATION_CREDENTIALS`**: Path to your service account JSON key file.
+    ```bash
+    export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/service-account.json"
+    ```
+    *Ensure this service account has `Storage Object Admin` and `Logging Log Writer` roles.*
+
+2.  (Optional) **`GCLOUD_PROJECT`**: If not inferred from credentials, set your project ID explicitely.
+
+3.  (Optional) **`CLOUD_LOG_NAME`**: Set the custom log stream name for Cloud Logging (default: "python").
+    ```bash
+    export CLOUD_LOG_NAME="caustic-runner-worker"
+    ```
+
+**Cloud Logging:**
+The runner automatically detects if `google-cloud-logging` is installed and attempts to send logs to Google Cloud Logging. This allows you to view progress and errors in the GCP Console under "Logs Explorer".
+
+### Infrastructure as Code (Terraform)
+
+The `terraform/` directory contains configuration to provision the complete Google Cloud environment.
+
+**Resources Created:**
+-   **Cloud Run Job**: Hosts the `caustic_design` container logs.
+-   **Cloud Tasks**: Async queue to trigger jobs.
+-   **Firestore**: Database for real-time progress tracking.
+-   **Cloud Storage**: Buckets for inputs/outputs.
+-   **IAM**: Service accounts with least-privilege access.
+
+**Usage:**
+
+1.  Initialize Terraform:
+    ```bash
+    cd terraform
+    terraform init
+    ```
+
+2.  Plan (dry-run):
+    ```bash
+    terraform plan -var="project_id=YOUR_PROJECT_ID"
+    ```
+
+3.  Apply:
+    ```bash
+    terraform apply -var="project_id=YOUR_PROJECT_ID"
+    ```
+
+After applying, Terraform will output the created bucket names and resource IDs.
 ## Build from source
 
 This code uses [Eigen](https://eigen.tuxfamily.org), Surface_mesh, and CImg that are already included in the repo/archive.

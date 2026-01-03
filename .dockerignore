@@ -1,0 +1,7 @@
+build/
+apps/build/
+.git/
+.vscode/
+__pycache__/
+*.obj
+*.png

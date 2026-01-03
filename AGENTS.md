@@ -87,7 +87,7 @@ When iterating on codebase changes, follow this workflow:
    ```bash
    ./build/caustic_design -in_trg tests/jkHeart.png -focal_l 3 -mesh_width 1 -res 200 -output tests/jkHeart.obj
    ```
-4. **Render preview**:
+4. **Render test pattern**:
    ```bash
    ./tests/winblender.sh tests/renderBlender.py tests/CausticTemplate.blend tests/jkHeart.obj tests/render.png
    ```

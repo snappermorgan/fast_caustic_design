@@ -460,10 +460,17 @@ def run_caustic_design(executable, args, platform_info, exec_type, on_complete):
             gen_state.status_text = "Complete!"
         else:
             gen_state.status_text = f"Error (code {gen_state.process.returncode})"
+            print(f"===== CAUSTIC_DESIGN FAILED (exit code {gen_state.process.returncode}) =====")
+            print(f"Last output lines:")
+            for line in gen_state.output_lines[-20:]:
+                print(f"  {line}")
+            print("=" * 50)
             
     except Exception as e:
         gen_state.status_text = f"Error: {str(e)}"
         print(f"Error running caustic_design: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         gen_state.is_running = False
         gen_state.process = None
@@ -572,9 +579,6 @@ class CAUSTIC_OT_generate_mesh(bpy.types.Operator):
             "-res", str(props.gen_resolution),
             "-v", str(props.gen_verbose),
         ]
-        
-        if props.gen_padding > 0:
-            args.extend(["-padding", str(props.gen_padding)])
             
         # Add JSON progress flag for parsing
         args.append("--json-progress")
@@ -947,11 +951,7 @@ class CAUSTIC_PT_generate_panel(bpy.types.Panel):
         row.prop(props, "gen_resolution")
         
         row = box.row()
-        row.prop(props, "gen_padding")
         row.prop(props, "gen_verbose")
-        
-        row = box.row()
-        row.prop(props, "gen_preview")
         
         # Progress display
         if gen_state.is_running or gen_state.progress > 0:
